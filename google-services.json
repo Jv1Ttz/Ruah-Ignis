@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "143974705219",
+    "project_id": "ruah-ignis",
+    "storage_bucket": "ruah-ignis.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:143974705219:android:c9dfb44a897e24f021ccf6",
+        "android_client_info": {
+          "package_name": "com.ruahignis.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3rbZpOf07cHpndfK4sZavjCSOrl-NjAo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

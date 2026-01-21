@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ruah-ignis</string>
+    <string name="title_activity_main">ruah-ignis</string>
+    <string name="package_name">com.ruahignis.app</string>
+    <string name="custom_url_scheme">com.ruahignis.app</string>
+</resources>

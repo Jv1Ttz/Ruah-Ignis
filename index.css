@@ -1,0 +1,17 @@
+@layer utilities {
+  /* Empurra o conteúdo para baixo da barra de status */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  /* Empurra o conteúdo para cima da barra de home/botões */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Garante altura total considerando as barras */
+  .h-safe-screen {
+    height: 100vh; /* Fallback */
+    height: 100dvh;
+  }
+}
