@@ -1,0 +1,7 @@
+{
+  "name": "Ruah Ignis",
+  "description": "A gamified spiritual companion for Lent. Track daily prayers for your Secret Prayer Friend, maintain your streak, and chat anonymously.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
