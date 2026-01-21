@@ -61,7 +61,7 @@ const SplashScreen: React.FC = () => {
       
       {/* Footer Text */}
       <div className="absolute bottom-8 text-slate-400 dark:text-slate-600 text-[10px] uppercase tracking-widest">
-        Quaresma 2025
+        Quaresma 2026
       </div>
     </div>
   );

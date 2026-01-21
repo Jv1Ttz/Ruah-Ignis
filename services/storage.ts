@@ -65,7 +65,8 @@ export const storageService = {
     return data ? data.map(mapProfileToUser) : [];
   },
 
-  getLeaderboard: async () => {
+  // Renomeei de 'getLeaderboard' para 'getStreakLeaderboard'
+  getStreakLeaderboard: async (): Promise<User[]> => {
     const { data } = await supabase.from('profiles').select('*').order('streak', { ascending: false }).limit(50);
     return data ? data.map(mapProfileToUser) : [];
   },
@@ -169,15 +170,17 @@ export const storageService = {
     return { success: true, isCorrect, correctIndex: quiz.correct_index };
   },
 
+ // --- Adicione no storage.ts ---
+  
   getScoreLeaderboard: async (): Promise<User[]> => {
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .order('score', { ascending: false })
+      .order('score', { ascending: false }) // Ordena por pontos
       .limit(50);
-
-    if (!data) return [];
-    return data.map(mapProfileToUser);
+      
+    // Importante: mapProfileToUser deve incluir o 'score'
+    return data ? data.map(mapProfileToUser) : [];
   },
 
   // --- CHAT REALTIME (AQUI ESTÁ A MÁGICA) ---

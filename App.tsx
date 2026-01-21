@@ -68,6 +68,12 @@ const [activeTab, setActiveTab] = useState<'home' | 'ranking' | 'chat' | "quiz">
         {activeTab === 'home' && <FlameComponent user={user} onUpdateUser={handleUpdateUser} />}
         {activeTab === 'ranking' && <Ranking />}
         {activeTab === 'chat' && <Chat user={user} />}
+        {activeTab === 'quiz' && (
+          <div className="flex flex-col items-center pt-4">
+             <h2 className="text-xl font-bold mb-4 text-indigo-600 dark:text-indigo-400">Desafio Diário</h2>
+             <DailyQuiz />
+          </div>
+        )}
       </main>
 
       <Navigation currentTab={activeTab} onTabChange={setActiveTab} />

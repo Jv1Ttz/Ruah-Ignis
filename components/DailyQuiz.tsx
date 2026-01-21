@@ -133,7 +133,7 @@ const DailyQuiz: React.FC = () => {
           {/* Feedback Final */}
           {result === 'correct' && (
             <div className="mt-4 text-xs text-center text-green-600 dark:text-green-400 font-bold animate-bounce-small bg-green-50 dark:bg-green-900/20 py-2 rounded-lg">
-              Boa! Ganhaste +{quiz.xp} pontos! 🎉
+              Boa! Você Ganhou +{quiz.xp} pontos! 🎉
             </div>
           )}
           {result === 'wrong' && (

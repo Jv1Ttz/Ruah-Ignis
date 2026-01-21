@@ -161,7 +161,7 @@ const formatMessage = (text: string) => {
               : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'
           }`}
         >
-          Meu Anjo 🕵️
+          Quem me Tirou🕵️
         </button>
       </div>
       
