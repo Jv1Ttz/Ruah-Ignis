@@ -11,6 +11,7 @@ const mapProfileToUser = (data: any): User => ({
   avatarUrl: data.avatar_url,
   targetId: data.target_id,
   streak: data.streak,
+  score: data.score || 0,
 });
 
 export const storageService = {
@@ -94,6 +95,89 @@ export const storageService = {
     const newStreak = (user?.streak || 0) + 1;
     await supabase.from('profiles').update({ streak: newStreak }).eq('id', storedId);
     return { success: true, streak: newStreak };
+  },
+
+  // --- QUIZ & SCORE ---
+
+  getTodayQuiz: async (): Promise<{ id: number; question: string; options: string[]; xp: number; answered: boolean; correct?: boolean; correctIndex?: number } | null> => {
+    const storedId = localStorage.getItem(LOCAL_ID_KEY);
+    if (!storedId) return null;
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // 1. Busca o quiz de hoje
+    const { data: quiz } = await supabase
+      .from('daily_quiz')
+      .select('*')
+      .eq('date', today)
+      .maybeSingle();
+
+    if (!quiz) return null;
+
+    // 2. Verifica se o usuário já respondeu
+    const { data: answer } = await supabase
+      .from('quiz_answers')
+      .select('correct')
+      .eq('user_id', storedId)
+      .eq('quiz_id', quiz.id)
+      .maybeSingle();
+
+    return {
+      id: quiz.id,
+      question: quiz.question,
+      options: quiz.options,
+      xp: quiz.xp,
+      answered: !!answer,
+      correct: answer?.correct,
+      correctIndex: quiz.correct_index // Necessário para mostrar qual era a certa se errar
+    };
+  },
+
+  submitQuizAnswer: async (quizId: number, selectedIndex: number): Promise<{ success: boolean; isCorrect: boolean; correctIndex?: number }> => {
+    const storedId = localStorage.getItem(LOCAL_ID_KEY);
+    if (!storedId) return { success: false, isCorrect: false };
+
+    // 1. Busca o gabarito
+    const { data: quiz } = await supabase
+      .from('daily_quiz')
+      .select('correct_index, xp')
+      .eq('id', quizId)
+      .single();
+
+    if (!quiz) return { success: false, isCorrect: false };
+
+    const isCorrect = quiz.correct_index === selectedIndex;
+
+    // 2. Registra a resposta
+    const { error } = await supabase
+      .from('quiz_answers')
+      .insert({ 
+        user_id: storedId, 
+        quiz_id: quizId,
+        correct: isCorrect
+      });
+
+    if (error) return { success: false, isCorrect, correctIndex: quiz.correct_index };
+
+    // 3. Se acertou, dá os pontos!
+    if (isCorrect) {
+      const { data: user } = await supabase.from('profiles').select('score').eq('id', storedId).single();
+      const currentScore = user?.score || 0;
+      await supabase.from('profiles').update({ score: currentScore + quiz.xp }).eq('id', storedId);
+    }
+
+    return { success: true, isCorrect, correctIndex: quiz.correct_index };
+  },
+
+  getScoreLeaderboard: async (): Promise<User[]> => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('score', { ascending: false })
+      .limit(50);
+
+    if (!data) return [];
+    return data.map(mapProfileToUser);
   },
 
   // --- CHAT REALTIME (AQUI ESTÁ A MÁGICA) ---

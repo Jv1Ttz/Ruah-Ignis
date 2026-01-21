@@ -8,12 +8,13 @@ import Ranking from './components/Ranking';
 import Chat from './components/Chat';
 import Onboarding from './components/Onboarding';
 import SplashScreen from './components/SplashScreen';
+import DailyQuiz from './components/DailyQuiz'; // <--- Importe o Quiz aqui
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
-  const [activeTab, setActiveTab] = useState<'home' | 'ranking' | 'chat'>('home');
+const [activeTab, setActiveTab] = useState<'home' | 'ranking' | 'chat' | "quiz">('home');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {

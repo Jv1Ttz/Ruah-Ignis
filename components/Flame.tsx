@@ -4,6 +4,7 @@ import { User, GroupMember } from '../types';
 import { GROUP_MEMBERS } from '../constants';
 import { Sparkles, Flame } from 'lucide-react';
 
+
 interface FlameProps {
   user: User;
   onUpdateUser: (u: User) => void;

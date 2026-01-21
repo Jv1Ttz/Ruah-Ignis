@@ -4,6 +4,7 @@ export interface User {
   avatarUrl?: string; // Base64
   targetId: string | null; // The ID of the person they are praying for
   streak: number; // Current calculated streak
+  score?: number;
   isMock?: boolean; // To distinguish real user from mock data
 }
 
