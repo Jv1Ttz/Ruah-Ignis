@@ -17,20 +17,19 @@ const Header: React.FC<HeaderProps> = ({ user, onUpdateUser, toggleTheme, curren
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      
       reader.onloadend = async () => {
         const base64 = reader.result as string;
-        // CORREÇÃO: await na atualização do avatar
         const updated = await storageService.updateAvatar(base64);
         if (updated) onUpdateUser(updated);
       };
-      
       reader.readAsDataURL(file);
     }
   };
 
+  // REMOVIDO: fixed top-0 left-0 right-0
+  // ADICIONADO: w-full flex-none sticky top-0
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center px-4 z-50 transition-colors duration-300">
+    <header className="w-full h-16 flex-none bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center px-4 z-50 transition-colors duration-300">
       
       <button 
         onClick={toggleTheme}
