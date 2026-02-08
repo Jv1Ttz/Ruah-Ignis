@@ -66,11 +66,9 @@ const DailyQuiz: React.FC = () => {
           Não encontrei um quiz para a data de hoje:
         </p>
         <code className="bg-yellow-100 px-2 py-1 rounded text-xs font-mono block mb-2">
-          {new Date().toISOString().split('T')[0]} (Data do seu PC)
+          {new Date().toISOString().split('T')[0]} (Data do seu Aparelho)
         </code>
-        <p className="text-xs text-slate-500">
-          Verifique se você rodou o script SQL de inserção no Supabase.
-        </p>
+        
       </div>
     );
   }

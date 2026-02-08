@@ -22,17 +22,19 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, currentUser }) => {
   const [error, setError] = useState('');
   const [members, setMembers] = useState<User[]>([]);
 
-  // Carrega lista de membros para o dropdown
+  // ATUALIZAÇÃO 1: Carrega apenas os disponíveis
   useEffect(() => {
     if (step === 'target') {
       const loadMembers = async () => {
-        const list = await storageService.getAllProfiles();
-        const others = list.filter(u => u.id !== currentUser?.id);
-        setMembers(others);
+        // Trocamos getAllProfiles por getAvailableTargets
+        const availableList = await storageService.getAvailableTargets();
+        setMembers(availableList);
       };
       loadMembers();
     }
   }, [step, currentUser]);
+
+  
 
   // --- Passo 1: Identificar (Verifica se nome existe) ---
   const handleIdentify = async (e: React.FormEvent) => {

@@ -3,6 +3,15 @@ import { User, Message } from '../types';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 const LOCAL_ID_KEY = 'ruah_user_id';
+const LOCAL_USER_KEY = 'ruah_user_data';
+
+// Helper para garantir a data LOCAL (YYYY-MM-DD) e não UTC
+const getLocalDate = (date: Date = new Date()): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // Helper para mapear dados do banco
 const mapProfileToUser = (data: any): User => ({
@@ -10,13 +19,104 @@ const mapProfileToUser = (data: any): User => ({
   name: data.name,
   avatarUrl: data.avatar_url,
   targetId: data.target_id,
+  angelId: data.angel_id,
   streak: data.streak,
   score: data.score || 0,
+  isAdmin: data.is_admin || false
 });
 
+async function validateStreak(userId: string, currentStreak: number): Promise<number> {
+  if (currentStreak === 0) return 0;
+
+  // 1. Calcular "Ontem" baseado na data LOCAL do dispositivo
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = getLocalDate(yesterday);
+  
+  console.log(`[Streak] A verificar orações desde: ${yesterdayStr}`);
+
+  // 2. Verifica se existe oração de "Ontem" para frente
+  const { data } = await supabase
+    .from('prayers')
+    .select('date')
+    .eq('user_id', userId)
+    .gte('date', yesterdayStr) 
+    .limit(1);
+
+  // Se não achou nada (nem ontem, nem hoje), zera tudo
+  if (!data || data.length === 0) {
+    console.log("[Streak] Quebrou! Resetando para 0.");
+    await supabase.from('profiles').update({ streak: 0 }).eq('id', userId);
+    return 0;
+  }
+
+  console.log("[Streak] Mantido!");
+  return currentStreak;
+}
+
 export const storageService = {
-  // ... (Mantenha as funções de Auth: checkUserExists, login, register, getUser, updateUserTarget, updateAvatar, getAllProfiles)
-  // Vou reimprimir as essenciais abaixo, mas você pode manter as de Auth iguais ao passo anterior.
+  
+  // 1. Busca APENAS quem está disponível para ser escolhido
+  async getAvailableTargets(): Promise<User[]> {
+    const currentUserId = localStorage.getItem(LOCAL_ID_KEY);
+    
+    // Passo A: Descobrir quem JÁ foi escolhido por alguém
+    // (Busca todos os target_id que não são nulos)
+    const { data: takenData } = await supabase
+      .from('profiles')
+      .select('target_id')
+      .not('target_id', 'is', null);
+      
+    // Cria uma lista simples de IDs ocupados: ['id-do-joao', 'id-da-maria']
+    const takenIds = takenData?.map(d => d.target_id) || [];
+
+    // Passo B: Buscar todos os usuários (exceto eu mesmo)
+    const { data: allProfiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .neq('id', currentUserId || '') // Não posso me escolher
+      .order('name');
+      
+    if (!allProfiles) return [];
+
+    // Passo C: Filtrar -> Só retorna quem NÃO está na lista de ocupados
+    const available = allProfiles.filter(profile => !takenIds.includes(profile.id));
+
+    // Reutilizamos o teu helper de mapeamento
+    return available.map(mapProfileToUser);
+  },
+
+  // 2. Tenta escolher um alvo com SEGURANÇA (Trava de duplicação)
+  async confirmTargetSelection(targetId: string): Promise<{ success: boolean; message?: string }> {
+     const userId = localStorage.getItem(LOCAL_ID_KEY);
+     if (!userId) return { success: false, message: "Erro: Usuário não logado." };
+
+     // TRAVA DE SEGURANÇA:
+     // Verifica no banco se alguém já escolheu esse alvo antes de eu salvar
+     const { data: isTaken } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('target_id', targetId)
+        .maybeSingle();
+
+     if (isTaken) {
+        // Se encontrou alguém, aborta a missão!
+        return { success: false, message: "Puxa! Essa pessoa acabou de ser escolhida por outro." };
+     }
+
+     // Se passou na trava, salva a escolha
+     const { error } = await supabase
+        .from('profiles')
+        .update({ target_id: targetId })
+        .eq('id', userId);
+
+     if (error) return { success: false, message: "Erro ao salvar escolha." };
+
+     // Atualiza o cache local do usuário para refletir a nova escolha
+     await storageService.getUser(); 
+
+     return { success: true };
+  },
 
   // --- REPETINDO AUTH (Para garantir que você tenha o arquivo completo) ---
   checkUserExists: async (name: string): Promise<boolean> => {
@@ -38,12 +138,47 @@ export const storageService = {
     return mapProfileToUser(data);
   },
 
-  getUser: async (): Promise<User | null> => {
-    const storedId = localStorage.getItem(LOCAL_ID_KEY);
-    if (!storedId) return null;
-    const { data } = await supabase.from('profiles').select('*').eq('id', storedId).single();
-    if (!data) { localStorage.removeItem(LOCAL_ID_KEY); return null; }
-    return mapProfileToUser(data);
+  async getUser(): Promise<User | null> {
+    const localId = localStorage.getItem(LOCAL_ID_KEY);
+    if (!localId) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', localId)
+        .single();
+
+      if (error || !data) {
+        const localData = localStorage.getItem(LOCAL_USER_KEY);
+        return localData ? JSON.parse(localData) : null;
+      }
+
+      // --- VALIDAÇÃO DE STREAK ---
+      // Verifica se o usuário perdeu o streak antes de devolver os dados
+      let validatedStreak = data.streak || 0;
+      if (validatedStreak > 0) {
+        validatedStreak = await validateStreak(data.id, validatedStreak);
+      }
+      // ---------------------------
+
+      const user: User = {
+        id: data.id,
+        name: data.name,
+        avatarUrl: data.avatar_url,
+        streak: validatedStreak, // Usa o valor validado
+        score: data.score || 0,
+        targetId: data.target_id,
+        angelId: data.angel_id,
+        isAdmin: data.is_admin || false
+      };
+
+      localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(user));
+      return user;
+    } catch (e) {
+      console.error("Erro ao buscar user:", e);
+      return null;
+    }
   },
   
   updateUserTarget: async (targetId: string) => {
@@ -71,18 +206,25 @@ export const storageService = {
     return data ? data.map(mapProfileToUser) : [];
   },
 
+  // Dentro de hasPrayedToday:
   hasPrayedToday: async () => {
     const storedId = localStorage.getItem(LOCAL_ID_KEY);
     if (!storedId) return false;
-    const today = new Date().toISOString().split('T')[0];
+    
+    const today = getLocalDate(); // <--- USAR O HELPER AQUI
+    
     const { count } = await supabase.from('prayers').select('*', { count: 'exact', head: true }).eq('user_id', storedId).eq('date', today);
     return (count || 0) > 0;
   },
 
+  // Dentro de logPrayer:
   logPrayer: async () => {
     const storedId = localStorage.getItem(LOCAL_ID_KEY);
     if (!storedId) return { success: false, streak: 0 };
-    const today = new Date().toISOString().split('T')[0];
+    
+    const today = getLocalDate(); // <--- USAR O HELPER AQUI
+    
+    // ... o resto da função continua igual ...
     
     if (await storageService.hasPrayedToday()) {
       const user = await storageService.getUser();

@@ -1,11 +1,12 @@
 export interface User {
   id: string;
   name: string;
-  avatarUrl?: string; // Base64
-  targetId: string | null; // The ID of the person they are praying for
-  streak: number; // Current calculated streak
-  score?: number;
-  isMock?: boolean; // To distinguish real user from mock data
+  avatarUrl?: string;
+  streak: number;
+  score: number; // Garanta que tem score
+  targetId?: string; // Quem eu tirei
+  angelId?: string;  // Quem me tirou (ADICIONADO AGORA)
+  isAdmin?: boolean; // Se é admin (ADICIONADO AGORA)
 }
 
 export interface PrayerLog {
@@ -17,7 +18,7 @@ export interface PrayerLog {
 
 export interface Message {
   id: string;
-  senderId: string; // 'me' or 'friend' (friend is the simulated anonymous partner)
+  senderId: 'me' | 'friend';
   text: string;
   timestamp: number;
   isRead: boolean;

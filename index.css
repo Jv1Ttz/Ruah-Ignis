@@ -14,4 +14,15 @@
     height: 100vh; /* Fallback */
     height: 100dvh;
   }
+  html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* Impede que a página inteira role */
+  position: fixed; /* Ajuda a travar o viewport no mobile */
+}
+
+/* Permite scroll apenas onde a gente mandar */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
 }

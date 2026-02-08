@@ -131,7 +131,7 @@ const formatMessage = (text: string) => {
 
   if (loading && messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[50vh] text-slate-400">
+      <div className="flex flex-col items-center justify-center h-full text-slate-400">
         <Loader2 className="animate-spin mb-2" />
         <p className="text-sm">Carregando conversa...</p>
       </div>
@@ -139,113 +139,115 @@ const formatMessage = (text: string) => {
   }
 
   return (
-    <div className="flex flex-col relative w-full -mt-4">
-      {/* Header Fixo */}
-      {/* --- SELETOR DE ABAS (FIXO) --- */}
-      <div className="fixed top-16 left-0 right-0 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-2 shadow-sm flex gap-2">
-        <button
-          onClick={() => setActiveTab('sent')}
-          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors border ${
-            activeTab === 'sent' 
-              ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' 
-              : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'
-          }`}
-        >
-          Quem eu tirei
-        </button>
-        <button
-          onClick={() => setActiveTab('received')}
-          className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors border ${
-            activeTab === 'received' 
-              ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50' 
-              : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50 dark:hover:bg-slate-800'
-          }`}
-        >
-          Quem me Tirou🕵️
-        </button>
-      </div>
-      
-      {/* Espaçador invisível para não esconder o conteúdo atrás das abas fixas */}
-      <div className="mt-14"></div>
+  /* CONTAINER PRINCIPAL: Ocupa o espaço exato entre o Header e o Nav do App */
+  /* O h-full aqui é essencial para ele não transbordar */
+  <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+    
+    {/* 1. SELETOR DE ABAS: Não use 'fixed', use apenas flex-shrink-0 */}
+    <div className="flex-shrink-0 px-4 py-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex gap-2 z-10">
+      <button
+        onClick={() => setActiveTab('sent')}
+        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all border ${
+          activeTab === 'sent' 
+            ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50 shadow-sm' 
+            : 'bg-transparent text-slate-500 border-transparent'
+        }`}
+      >
+        Quem eu tirei
+      </button>
+      <button
+        onClick={() => setActiveTab('received')}
+        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all border ${
+          activeTab === 'received' 
+            ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/50 shadow-sm' 
+            : 'bg-transparent text-slate-500 border-transparent'
+        }`}
+      >
+        Quem me Tirou 🕵️
+      </button>
+    </div>
 
-      {/* Lista de Mensagens */}
-      <div className="flex-1 px-4 pt-2 pb-24 space-y-4"> {/* Ajustei padding */}
-        {messages.length === 0 && !loading && (
-          <div className="text-center text-slate-600 dark:text-slate-600 text-sm mt-10 p-6 bg-white/50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800/50">
-            <p className="font-medium text-slate-500 dark:text-slate-400">Comece a conversa!</p>
-            <p className="mt-2 text-slate-700 dark:text-slate-300">Seu amigo não saberá quem é você.</p>
+    {/* 2. ÁREA DE MENSAGENS (Scrollável) */}
+<div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scroll-smooth bg-slate-50 dark:bg-slate-900">
+  {messages.length === 0 && !loading && (
+    <div className="text-center text-slate-400 text-sm mt-10">
+      Comece a conversa! Seu amigo não saberá quem é você.
+    </div>
+  )}
+
+  {messages.map((msg, index) => {
+    const isMe = msg.senderId === 'me';
+    
+    // --- LÓGICA DO DIA (RESTAURADA) ---
+    const prevMsg = messages[index - 1];
+    const isNewDay = !prevMsg || 
+      new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
+
+    return (
+      <React.Fragment key={msg.id}>
+        {/* SE FOR UM NOVO DIA, MOSTRA A DATA NO MEIO */}
+        {isNewDay && (
+          <div className="flex justify-center my-6">
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-200/50 dark:bg-slate-800/50 px-3 py-1 rounded-full uppercase tracking-widest">
+              {getFormattedDate(msg.timestamp)}
+            </span>
           </div>
         )}
 
-        {messages.map((msg, index) => {
-          const isMe = msg.senderId === 'me';
-          const prevMsg = messages[index - 1];
-          const isNewDay = !prevMsg || new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
-
-          return (
-            <React.Fragment key={msg.id}>
-              {isNewDay && (
-                <div className="flex justify-center my-6">
-                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm border border-slate-200 dark:border-slate-700 uppercase tracking-widest">
-                    {getFormattedDate(msg.timestamp)}
-                  </span>
-                </div>
-              )}
-
-              {/* Container da Mensagem */}
-              <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                <div 
-                  className={`
-                    relative max-w-[80%] px-4 py-2 text-sm shadow-md transition-all
-                    ${isMe 
-                      ? 'bg-red-600 text-white rounded-2xl rounded-tr-none ml-auto' // Estilo PARA MIM (Direita, Vermelho)
-                      : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl rounded-tl-none mr-auto border border-slate-100 dark:border-slate-700' // Estilo PARA AMIGO (Esquerda, Branco)
-                    }
-                  `}
-                >
-                  <p className="leading-relaxed whitespace-pre-wrap break-words">
-                      {formatMessage(msg.text)}
-                  </p>
-                  
-                  <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-red-200' : 'text-slate-400'}`}>
-                    <span className="text-[10px]">
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {/* Ícone de check para mensagem enviada */}
-                    {isMe && <CheckCheck size={12} className="opacity-80" />}
-                  </div>
-                </div>
-              </div>
-            </React.Fragment>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Fixo */}
-      <div className="fixed bottom-20 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 p-3 shadow-2xl transition-colors duration-300">
-        <div className="max-w-md mx-auto w-full">
-          <form onSubmit={handleSend} className="relative flex items-center gap-2">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Digite sua mensagem..."
-              disabled={sending}
-              className="w-full bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-full pl-5 pr-12 py-3 focus:ring-1 focus:ring-red-500 outline-none transition-all shadow-inner disabled:opacity-70"
-            />
-            <button 
-              type="submit" 
-              disabled={!inputText.trim() || sending} 
-              className="absolute right-2 p-2 bg-red-600 rounded-full text-white hover:bg-red-500 disabled:opacity-50 transition-all shadow-lg active:scale-95 flex items-center justify-center"
-            >
-              {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-            </button>
-          </form>
+        {/* CONTAINER DA MENSAGEM */}
+        <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+          <div 
+            className={`
+              relative max-w-[85%] px-4 py-2 text-sm shadow-sm transition-all
+              ${isMe 
+                ? 'bg-red-600 text-white rounded-2xl rounded-tr-none ml-auto' 
+                : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl rounded-tl-none mr-auto border border-slate-200 dark:border-slate-700'
+              }
+            `}
+          >
+            <p className="leading-relaxed whitespace-pre-wrap break-words">
+                {formatMessage(msg.text)}
+            </p>
+            
+            <div className={`flex items-center justify-end gap-1 mt-1 ${isMe ? 'text-red-200' : 'text-slate-400'}`}>
+              <span className="text-[10px] opacity-70">
+                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              {isMe && <CheckCheck size={12} className="opacity-80" />}
+            </div>
+          </div>
         </div>
-      </div>
+      </React.Fragment>
+    );
+  })}
+  <div ref={messagesEndRef} />
+</div>
+
+    {/* 3. CAMPO DE INPUT: Também não use 'fixed'. Ele deve ser o rodapé deste container */}
+    {/* 3. INPUT (Estilo Premium) */}
+<div className="shrink-0 p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+  <form onSubmit={handleSend} className="max-w-2xl mx-auto relative flex items-center gap-2">
+    <div className="relative flex-1">
+      <input
+        type="text"
+        value={inputText}
+        onChange={(e) => setInputText(e.target.value)}
+        placeholder="Escreva uma mensagem..."
+        disabled={sending}
+        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl pl-5 pr-12 py-3.5 focus:ring-2 focus:ring-red-500/20 focus:border-red-500/50 outline-none transition-all text-base shadow-inner"
+      />
+      <button 
+        type="submit" 
+        disabled={!inputText.trim() || sending} 
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-red-600 rounded-xl text-white shadow-lg shadow-red-500/30 active:scale-90 transition-all disabled:grayscale disabled:opacity-30"
+      >
+        {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+      </button>
     </div>
-  );
+  </form>
+</div>
+  </div>
+);
 };
 
 export default Chat;
