@@ -9,13 +9,18 @@ interface OnboardingProps {
 }
 
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete, currentUser }) => {
-  const [step, setStep] = useState<'identify' | 'auth' | 'target'>(currentUser ? 'target' : 'identify');
+  const [step, setStep] = useState<'identify' | 'auth' | 'target' | 'forceChange'>(currentUser ? 'target' : 'identify');
   
   // Form States
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [isRegistering, setIsRegistering] = useState(false); // True = Novo Usuário, False = Login
   const [selectedTarget, setSelectedTarget] = useState<string>('');
+  const [pendingUser, setPendingUser] = useState<User | null>(null); // usuário temporário para troca de senha
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [changeError, setChangeError] = useState('');
   
   // UI States
   const [loading, setLoading] = useState(false);
@@ -71,11 +76,18 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, currentUser }) => {
       }
 
       if (user) {
-        onComplete(user); // Atualiza o App.tsx
-        // Se o usuário já tem target (login antigo), o App.tsx vai redirecionar sozinho.
-        // Se não tem (novo cadastro), vamos forçar o passo target aqui:
-        if (!user.targetId) {
-          setStep('target'); 
+        // Se entrou com a senha padrão, força troca de senha antes de prosseguir
+        const DEFAULT_PASSWORD = '12345';
+        if (password.trim() === DEFAULT_PASSWORD) {
+          setPendingUser(user);
+          setStep('forceChange');
+        } else {
+          onComplete(user); // Atualiza o App.tsx
+          // Se o usuário já tem target (login antigo), o App.tsx vai redirecionar sozinho.
+          // Se não tem (novo cadastro), vamos forçar o passo target aqui:
+          if (!user.targetId) {
+            setStep('target'); 
+          }
         }
       } else {
         setError(isRegistering ? 'Erro ao criar conta.' : 'Senha incorreta.');
@@ -84,6 +96,44 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, currentUser }) => {
       setError('Ocorreu um erro. Tente novamente.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Força troca de senha quando o usuário entrou com a senha padrão
+  const handleChangePassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    console.log('handleChangePassword called', { newPassword, confirmPassword, pendingUser });
+    setChangeError('');
+    if (!pendingUser) return;
+    if (!newPassword.trim() || newPassword.trim().length < 4) {
+      setChangeError('Senha muito curta (mínimo 4 caracteres).');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setChangeError('Confirmação não coincide.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const updated = await storageService.updatePassword(newPassword.trim());
+      console.log('updatePassword result', updated);
+      if (!updated) {
+        setChangeError('Erro ao atualizar senha. Tente novamente.');
+        setChangingPassword(false);
+        return;
+      }
+      // Recarrega usuário atualizado e segue para seleção de target se ainda não tiver
+      onComplete(updated);
+      // Força o passo de seleção de target nesta tela caso o componente não seja remontado
+      if (!updated.targetId) {
+        setStep('target');
+      }
+    } catch (err) {
+      console.error('Erro handleChangePassword', err);
+      setChangeError('Erro ao atualizar senha.');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -182,24 +232,92 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, currentUser }) => {
     );
   }
 
-  // Tela 3: Seleção (Target) - Igual a anterior
+  // Tela de troca forçada de senha
+  if (step === 'forceChange') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-center">
+        <div className="mb-6 p-3 bg-red-50 dark:bg-slate-900 rounded-full">
+          <UserPlus className="text-red-500" size={32}/>
+        </div>
+
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Primeiro acesso</h2>
+        <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm">
+          Você entrou com a senha padrão. Por favor, escolha uma nova senha para proteger sua conta.
+        </p>
+
+        <form onSubmit={handleChangePassword} className="w-full max-w-sm">
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="Nova senha"
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-5 py-4 mb-4 focus:ring-2 focus:ring-red-500 outline-none"
+            autoFocus
+          />
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirme a nova senha"
+            className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-5 py-4 mb-4 focus:ring-2 focus:ring-red-500 outline-none"
+          />
+
+          {changeError && <p className="text-red-500 text-sm mb-4 bg-red-50 dark:bg-red-900/20 p-2 rounded">{changeError}</p>}
+
+          <div className="flex gap-2">
+            <button 
+              type="button"
+              onClick={() => setStep('auth')}
+              className="px-4 py-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900"
+            >
+              Voltar
+            </button>
+            <button 
+              type="submit"
+              onClick={() => handleChangePassword()}
+              disabled={changingPassword}
+              className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"
+            >
+              {changingPassword ? 'Alterando...' : 'Alterar senha'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+  // Tela 3: Seleção (Target) - Lista rolável para mobile
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-slate-50 dark:bg-slate-950 text-center">
       <div className="mb-6 p-3 bg-red-50 dark:bg-slate-900 rounded-full">
         <Users className="text-red-500" size={32} />
       </div>
       <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Quem você tirou?</h2>
-      <p className="text-slate-500 dark:text-slate-400 mb-8 text-sm">Selecione seu amigo secreto na lista.</p>
+      <p className="text-slate-500 dark:text-slate-400 mb-4 text-sm">Selecione seu amigo secreto na lista.</p>
 
-      <div className="w-full max-w-sm space-y-4">
-        <select
-          value={selectedTarget}
-          onChange={(e) => setSelectedTarget(e.target.value)}
-          className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl px-5 py-4 outline-none focus:border-red-500 appearance-none"
-        >
-          <option value="" disabled>Selecione um membro...</option>
-          {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
+      <div className="w-full max-w-sm space-y-4 flex flex-col">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-2 max-h-[45vh] overflow-y-auto">
+          {members.length === 0 && (
+            <div className="text-sm text-slate-500 p-4">Nenhum membro disponível.</div>
+          )}
+          {members.map(m => {
+            const isSelected = selectedTarget === m.id;
+            return (
+              <button
+                key={m.id}
+                onClick={() => setSelectedTarget(m.id)}
+                className={`w-full text-left px-4 py-3 my-1 rounded-lg transition-colors flex items-center justify-between ${
+                  isSelected
+                    ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 font-medium'
+                    : 'bg-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-900 dark:text-white'
+                }`}
+              >
+                <span className="truncate">{m.name}</span>
+                {isSelected && <Check size={16} className="text-red-600" />}
+              </button>
+            );
+          })}
+        </div>
+
         <button 
           onClick={handleTargetSubmit}
           disabled={loading || !selectedTarget}

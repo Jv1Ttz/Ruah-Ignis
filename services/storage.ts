@@ -21,6 +21,7 @@ const mapProfileToUser = (data: any): User => ({
   targetId: data.target_id,
   angelId: data.angel_id,
   streak: data.streak,
+  maxStreak: data.max_streak || 0,
   score: data.score || 0,
   isAdmin: data.is_admin || false
 });
@@ -167,6 +168,7 @@ export const storageService = {
         name: data.name,
         avatarUrl: data.avatar_url,
         streak: validatedStreak, // Usa o valor validado
+        maxStreak: data.max_streak || 0,
         score: data.score || 0,
         targetId: data.target_id,
         angelId: data.angel_id,
@@ -193,6 +195,24 @@ export const storageService = {
     if (!storedId) return null;
     const { data } = await supabase.from('profiles').update({ avatar_url: base64 }).eq('id', storedId).select().single();
     return data ? mapProfileToUser(data) : null;
+  },
+  
+  // Atualiza a senha do usuário logado
+  updatePassword: async (newPassword: string) => {
+    const storedId = localStorage.getItem(LOCAL_ID_KEY);
+    if (!storedId) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ password: newPassword })
+      .eq('id', storedId)
+      .select()
+      .single();
+
+    if (error || !data) return null;
+    // Atualiza cache local também
+    const user = mapProfileToUser(data);
+    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(user));
+    return user;
   },
 
   getAllProfiles: async () => {
@@ -236,7 +256,9 @@ export const storageService = {
 
     const user = await storageService.getUser();
     const newStreak = (user?.streak || 0) + 1;
-    await supabase.from('profiles').update({ streak: newStreak }).eq('id', storedId);
+    const currentMax = user?.maxStreak || 0;
+    const newMax = Math.max(currentMax, newStreak);
+    await supabase.from('profiles').update({ streak: newStreak, max_streak: newMax }).eq('id', storedId);
     return { success: true, streak: newStreak };
   },
 

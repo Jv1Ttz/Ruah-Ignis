@@ -4,6 +4,7 @@ export interface User {
   avatarUrl?: string;
   streak: number;
   score: number; // Garanta que tem score
+  maxStreak?: number; // recorde máximo de streak do usuário
   targetId?: string; // Quem eu tirei
   angelId?: string;  // Quem me tirou (ADICIONADO AGORA)
   isAdmin?: boolean; // Se é admin (ADICIONADO AGORA)

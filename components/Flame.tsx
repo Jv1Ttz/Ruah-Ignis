@@ -51,8 +51,14 @@ const FlameComponent: React.FC<FlameProps> = ({ user, onUpdateUser }) => {
     const { success, streak } = await storageService.logPrayer();
     
     if (success) {
-      const updatedUser = { ...user, streak };
-      onUpdateUser(updatedUser);
+      // Recarrega o usuário para obter também o maxStreak atualizado
+      const refreshed = await storageService.getUser();
+      if (refreshed) {
+        onUpdateUser(refreshed);
+      } else {
+        const updatedUser = { ...user, streak };
+        onUpdateUser(updatedUser);
+      }
       setPrayedToday(true);
     }
     
@@ -145,6 +151,10 @@ const FlameComponent: React.FC<FlameProps> = ({ user, onUpdateUser }) => {
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold text-slate-800 dark:text-white font-mono tracking-tighter transition-colors">{user.streak}</span>
             <span className="text-sm text-red-600 dark:text-red-500 font-medium">dias</span>
+          </div>
+          {/* Recorde máximo */}
+          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Recorde: <span className="font-semibold text-slate-700 dark:text-white">{user.maxStreak || 0} dias</span>
           </div>
         </div>
       )}
