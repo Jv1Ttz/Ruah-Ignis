@@ -50,7 +50,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, currentUser }) => {
 
     try {
       const exists = await storageService.checkUserExists(name.trim());
-      setIsRegistering(!exists); // Se não existe, vamos registrar
+      if (!exists) {
+        setError('Usuário não encontrado. Peça ao responsável para cadastrá-lo.');
+        setIsRegistering(false);
+        setLoading(false);
+        return;
+      }
+      // Usuário existe: seguir para autenticação (login)
+      setIsRegistering(false);
       setStep('auth');
     } catch (err) {
       setError('Erro ao verificar usuário.');
@@ -174,6 +181,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, currentUser }) => {
           >
             {loading ? 'Verificando...' : <>Continuar <ChevronRight size={20} /></>}
           </button>
+          {error && <p className="text-red-500 text-sm mt-3 bg-red-50 dark:bg-red-900/20 p-2 rounded">{error}</p>}
         </form>
       </div>
     );
