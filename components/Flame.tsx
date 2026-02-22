@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { storageService } from '../services/storage';
 import { User } from '../types';
 import { GROUP_MEMBERS } from '../constants';
-import { Sparkles, Flame, CloudFog, Wind } from 'lucide-react';
+import { Sparkles, Flame, CloudFog, Wind, Loader2 } from 'lucide-react';
 
 interface FlameProps {
   user: User;
@@ -13,6 +13,7 @@ const FlameComponent: React.FC<FlameProps> = ({ user, onUpdateUser }) => {
   const [prayedToday, setPrayedToday] = useState(false);
   const [targetName, setTargetName] = useState('Amigo Secreto');
   const [animating, setAnimating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Verifica se o fogo apagou (streak 0)
@@ -44,25 +45,29 @@ const FlameComponent: React.FC<FlameProps> = ({ user, onUpdateUser }) => {
   }, [user.targetId]);
 
   const handleIgnite = async () => {
-    if (prayedToday || loading) return;
+    if (prayedToday || loading || submitting) return;
 
+    setSubmitting(true);
     setAnimating(true);
-    
-    const { success, streak } = await storageService.logPrayer();
-    
-    if (success) {
-      // Recarrega o usuário para obter também o maxStreak atualizado
-      const refreshed = await storageService.getUser();
-      if (refreshed) {
-        onUpdateUser(refreshed);
-      } else {
-        const updatedUser = { ...user, streak };
-        onUpdateUser(updatedUser);
+
+    try {
+      const { success, streak } = await storageService.logPrayer();
+
+      if (success) {
+        // Recarrega o usuário para obter também o maxStreak atualizado
+        const refreshed = await storageService.getUser();
+        if (refreshed) {
+          onUpdateUser(refreshed);
+        } else {
+          const updatedUser = { ...user, streak };
+          onUpdateUser(updatedUser);
+        }
+        setPrayedToday(true);
       }
-      setPrayedToday(true);
+    } finally {
+      setSubmitting(false);
+      setTimeout(() => setAnimating(false), 2000);
     }
-    
-    setTimeout(() => setAnimating(false), 2000);
   };
 
   return (
@@ -120,16 +125,23 @@ const FlameComponent: React.FC<FlameProps> = ({ user, onUpdateUser }) => {
                 />
              </div>
           ) : (
-            <Flame 
-              size={140} 
-              strokeWidth={1}
-              className={`transition-all duration-1000 ease-in-out
-                ${prayedToday 
-                  ? 'text-red-600 fill-red-600 animate-breathing-glow' 
-                  : 'text-slate-300 dark:text-slate-700 fill-transparent group-hover:text-slate-400 dark:group-hover:text-slate-600'
-                }
-              `}
-            />
+            <div className="relative">
+              <Flame 
+                size={140} 
+                strokeWidth={1}
+                className={`transition-all duration-1000 ease-in-out
+                  ${prayedToday 
+                    ? 'text-red-600 fill-red-600 animate-breathing-glow' 
+                    : 'text-slate-300 dark:text-slate-700 fill-transparent group-hover:text-slate-400 dark:group-hover:text-slate-600'
+                  }
+                `}
+              />
+              {submitting && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 size={36} className="animate-spin text-red-500" />
+                </div>
+              )}
+            </div>
           )}
 
         </div>

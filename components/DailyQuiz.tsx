@@ -20,6 +20,7 @@ const DailyQuiz: React.FC = () => {
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [result, setResult] = useState<'correct' | 'wrong' | null>(null);
   const [correctIdx, setCorrectIdx] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -39,18 +40,22 @@ const DailyQuiz: React.FC = () => {
   }, []);
 
   const handleOptionClick = async (index: number) => {
-    if (result || !quiz) return;
-    
+    if (result || !quiz || submitting) return;
+
+    setSubmitting(true);
     setSelectedIdx(index); // Marca qual eu cliquei
-    
-    const response = await storageService.submitQuizAnswer(quiz.id, index);
-    
-    if (response.success) {
-      setResult(response.isCorrect ? 'correct' : 'wrong');
-      if (typeof response.correctIndex === 'number') {
-        setCorrectIdx(response.correctIndex);
+
+    try {
+      const response = await storageService.submitQuizAnswer(quiz.id, index);
+      if (response.success) {
+        setResult(response.isCorrect ? 'correct' : 'wrong');
+        if (typeof response.correctIndex === 'number') {
+          setCorrectIdx(response.correctIndex);
+        }
+        setQuiz({ ...quiz, answered: true, correct: response.isCorrect });
       }
-      setQuiz({ ...quiz, answered: true, correct: response.isCorrect });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -115,14 +120,16 @@ const DailyQuiz: React.FC = () => {
               }
 
               return (
-                <button
+              <button
                   key={idx}
                   onClick={() => handleOptionClick(idx)}
-                  disabled={!!result}
+                  disabled={!!result || submitting}
                   className={`w-full text-left px-4 py-3.5 rounded-xl border text-sm font-medium transition-all duration-300 flex items-center justify-between group active:scale-[0.98] ${btnClass}`}
                 >
                   <span className="flex-1 pr-2">{option}</span>
-                  {icon}
+                  {submitting && selectedIdx === idx ? (
+                    <span className="text-xs text-slate-400 ml-2">Enviando...</span>
+                  ) : icon}
                 </button>
               );
             })}

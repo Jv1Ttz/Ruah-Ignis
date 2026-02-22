@@ -313,22 +313,58 @@ export const storageService = {
 
     const isCorrect = quiz.correct_index === selectedIndex;
 
-    // 2. Registra a resposta
+    // 2. Evita respostas duplicadas: se já respondeu, retorna o resultado existente (sem dar pontos novamente)
+    const { data: existingAnswer } = await supabase
+      .from('quiz_answers')
+      .select('correct')
+      .eq('user_id', storedId)
+      .eq('quiz_id', quizId)
+      .maybeSingle();
+
+    if (existingAnswer) {
+      // Já respondeu antes — considera sucesso para atualizar UI, mas não altera nada no DB
+      return { success: true, isCorrect: !!existingAnswer.correct, correctIndex: quiz.correct_index };
+    }
+
+    // 3. Registra a resposta (única vez)
     const { error } = await supabase
       .from('quiz_answers')
-      .insert({ 
-        user_id: storedId, 
+      .insert({
+        user_id: storedId,
         quiz_id: quizId,
         correct: isCorrect
       });
 
-    if (error) return { success: false, isCorrect, correctIndex: quiz.correct_index };
+    if (error) {
+      // Pode ocorrer corrida: outro processo inseriu ao mesmo tempo.
+      // Detecta violação de unicidade e retorna o resultado já existente em vez de falhar.
+      const msg = String(error.message || '').toLowerCase();
+      const detail = String(error.details || '').toLowerCase();
+      const isUniqueViolation = error.code === '23505' || msg.includes('duplicate') || detail.includes('duplicate') || msg.includes('unique');
+      if (isUniqueViolation) {
+        const { data: existing } = await supabase
+          .from('quiz_answers')
+          .select('correct')
+          .eq('user_id', storedId)
+          .eq('quiz_id', quizId)
+          .maybeSingle();
+        return { success: true, isCorrect: !!existing?.correct, correctIndex: quiz.correct_index };
+      }
+      // outro erro
+      console.error('Erro ao inserir resposta do quiz:', error);
+      return { success: false, isCorrect, correctIndex: quiz.correct_index };
+    }
 
-    // 3. Se acertou, dá os pontos!
+    // 4. Se acertou, atualiza pontos (apenas agora, já que não havia resposta anterior)
     if (isCorrect) {
-      const { data: user } = await supabase.from('profiles').select('score').eq('id', storedId).single();
-      const currentScore = user?.score || 0;
-      await supabase.from('profiles').update({ score: currentScore + quiz.xp }).eq('id', storedId);
+      try {
+        const { data: user } = await supabase.from('profiles').select('score').eq('id', storedId).single();
+        const currentScore = user?.score || 0;
+        await supabase.from('profiles').update({ score: currentScore + quiz.xp }).eq('id', storedId);
+      } catch (e) {
+        // Se falhar ao atualizar score, não impede o sucesso da resposta — log para depuração
+        console.error('Erro ao atualizar score após quiz:', e);
+      }
     }
 
     return { success: true, isCorrect, correctIndex: quiz.correct_index };
